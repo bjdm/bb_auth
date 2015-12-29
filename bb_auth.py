@@ -114,7 +114,11 @@ def authenticate(username, password, session=None):
         logging.info('Initiatiating new session.')
         session = requests.Session()
     # Parse the response of the inital Blackboard connection
-    soup = bs(session.get(bb_url).content, 'lxml')
+    try:
+        soup = bs(session.get(bb_url).content, 'lxml')
+    except:
+        logging.info('lxml was not installed. Falling back to html.parser')
+        soup = bs(session.get(bb_url).content, 'html.parser')
 
     # Begin shibboleth authentication
     logging.info('Begginging authentication as %s' % username)
@@ -125,7 +129,7 @@ def authenticate(username, password, session=None):
 
 
 def main():
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.DEBUG)
 
     # Example usage with user input
     session = requests.Session()
