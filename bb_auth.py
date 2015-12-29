@@ -124,7 +124,9 @@ def authenticate(username, password, session=None):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
+
+    # Example usage with user input
     session = requests.Session()
     un = input('Please enter your username: ')
     try:
@@ -136,6 +138,7 @@ def main():
         print('Your system is incapable of hiding input. Proceed with caution')
         pw = input('Please enter your password:')
     finally:
+        # Example usage of authenticate
         authenticate(un, pw, session)
 
     return
