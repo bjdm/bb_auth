@@ -1,7 +1,8 @@
 """
 File: bb_auth.py
 Author: Brent Mackey
-Github: https://github.com/bjdm/bb_auth
+Github: https://github.com/mackeybj/bb_auth
+License: GPLv3
 Description: Script to authenticate a requests session object to access
 the QUT Blackboard webapp.
 """
