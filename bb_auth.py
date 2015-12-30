@@ -6,7 +6,7 @@ License: GPLv3
 Description: Script to authenticate a requests session object to access
 the QUT Blackboard webapp.
 """
-
+import sys
 import logging
 
 import requests
@@ -66,8 +66,13 @@ def authenticated(session, soup=None):
 
 def submit_login_form(session, username, password):
     """ Submits login form with the user's credentials """
-    return session.post(login_url, data={'username': username,
-                        'password': password})
+    r = session.post(login_url, data={'username': username,
+                     'password': password})
+    if bs(r.content, 'lxml').find(class_="incorrect-login") is not None:
+        raise Exception("Invalid credentials")
+    else:
+        logging.info('Successfully Authenticated.')
+        return r
 
 
 def handle_sso_redirect(username, password, session, soup):
@@ -76,27 +81,28 @@ def handle_sso_redirect(username, password, session, soup):
     Returns response objects to keep the cookiejar fresh
     """
     # Determine which stage of the handshake the session is in
-    if(len(soup.findAll("div", { "class" : "incorrect-login" })) is not 0 ):
-        raise Exception("Incorrect username or password")
-    else:
-        if authenticated(session, soup):
-            logging.info('Successfully Authenticated.')
-            return session.get(bb_url)
-        elif awaiting_saml(soup):
-            logging.info('Submitting SAMLResponse to %s' % (soup.find('form')
-                                                            ['action']))
-            return submit_hidden_form(session, soup, data_type='saml')
-        elif awaiting_jwt(soup):
-            logging.info('Submitting jwtPayload to %s' % (soup.find('form')
-                                                          ['action']))
-            return submit_hidden_form(session, soup, data_type='jwt')
-        elif awaiting_login(soup):
-            logging.info('Attempting to log into %s as %s' % (soup.title.text,
-                                                              username))
+    if authenticated(session, soup):
+        logging.info('Successfully Authenticated.')
+        return session.get(bb_url)
+    elif awaiting_saml(soup):
+        logging.info('Submitting SAMLResponse to %s' % (soup.find('form')
+                                                        ['action']))
+        return submit_hidden_form(session, soup, data_type='saml')
+    elif awaiting_jwt(soup):
+        logging.info('Submitting jwtPayload to %s' % (soup.find('form')
+                                                      ['action']))
+        return submit_hidden_form(session, soup, data_type='jwt')
+    elif awaiting_login(soup):
+        logging.info('Attempting to log into %s as %s' % (soup.title.text,
+                                                          username))
+        try:
             return submit_login_form(session, username, password)
-        else:
-            logging.info('Unexpected webpage. Redirecting to main login portal')
-            return session.get(login_url)
+        except Exception:
+            print('Invalid credentials. Please try again')
+            return sys.exit(1)
+    else:
+        logging.info('Unexpected webpage. Redirecting to main login portal')
+        return session.get(login_url)
 
 
 def authenticate(username, password, session=None):
@@ -127,26 +133,27 @@ def authenticate(username, password, session=None):
     logging.info('Begginging authentication as %s' % username)
     while not authenticated(session, soup):
         soup = bs(handle_sso_redirect(username, password, session,
-                                  soup).content, 'lxml')
+                                      soup).content, 'lxml')
     return session
 
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.WARN)
 
     # Example usage with user input
     session = requests.Session()
-    un = input('Please enter your username: ')
+    un = input('Enter your username: ')
     try:
         import os
         os.system('stty -echo')
-        pw = input('Please enter your password:')
+        pw = input('Enter your password:')
         os.system('stty echo')
     except ImportError:
         print('Your system is incapable of hiding input. Proceed with caution')
         pw = input('Please enter your password:')
     finally:
         # Example usage of authenticate
+        print('\nPlease wait...')
         authenticate(un, pw, session)
 
     return
