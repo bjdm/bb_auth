@@ -76,24 +76,27 @@ def handle_sso_redirect(username, password, session, soup):
     Returns response objects to keep the cookiejar fresh
     """
     # Determine which stage of the handshake the session is in
-    if authenticated(session, soup):
-        logging.info('Successfully Authenticated.')
-        return session.get(bb_url)
-    elif awaiting_saml(soup):
-        logging.info('Submitting SAMLResponse to %s' % (soup.find('form')
-                                                        ['action']))
-        return submit_hidden_form(session, soup, data_type='saml')
-    elif awaiting_jwt(soup):
-        logging.info('Submitting jwtPayload to %s' % (soup.find('form')
-                                                      ['action']))
-        return submit_hidden_form(session, soup, data_type='jwt')
-    elif awaiting_login(soup):
-        logging.info('Attempting to log into %s as %s' % (soup.title.text,
-                                                          username))
-        return submit_login_form(session, username, password)
+    if(len(soup.findAll("div", { "class" : "incorrect-login" })) is not 0 ):
+        raise Exception("Incorrect username or password")
     else:
-        logging.info('Unexpected webpage. Redirecting to main login portal')
-        return session.get(login_url)
+        if authenticated(session, soup):
+            logging.info('Successfully Authenticated.')
+            return session.get(bb_url)
+        elif awaiting_saml(soup):
+            logging.info('Submitting SAMLResponse to %s' % (soup.find('form')
+                                                            ['action']))
+            return submit_hidden_form(session, soup, data_type='saml')
+        elif awaiting_jwt(soup):
+            logging.info('Submitting jwtPayload to %s' % (soup.find('form')
+                                                          ['action']))
+            return submit_hidden_form(session, soup, data_type='jwt')
+        elif awaiting_login(soup):
+            logging.info('Attempting to log into %s as %s' % (soup.title.text,
+                                                              username))
+            return submit_login_form(session, username, password)
+        else:
+            logging.info('Unexpected webpage. Redirecting to main login portal')
+            return session.get(login_url)
 
 
 def authenticate(username, password, session=None):
@@ -124,7 +127,7 @@ def authenticate(username, password, session=None):
     logging.info('Begginging authentication as %s' % username)
     while not authenticated(session, soup):
         soup = bs(handle_sso_redirect(username, password, session,
-                                      soup).content, 'lxml')
+                                  soup).content, 'lxml')
     return session
 
 
